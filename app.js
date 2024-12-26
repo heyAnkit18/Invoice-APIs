@@ -9,6 +9,8 @@ connectDB();
 
 app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/invoices', require('./routes/invoice'));
+
 
 
 const PORT = process.env.PORT || 5000;
