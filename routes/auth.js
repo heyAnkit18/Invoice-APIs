@@ -21,6 +21,8 @@ router.post('/login', async (req, res) => {
 
   const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
   res.send({ token });
+  // console.log('JWT_SECRET:', process.env.JWT_SECRET);
+
 });
 
 module.exports = router;

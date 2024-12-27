@@ -1,26 +1,29 @@
 const mongoose = require('mongoose');
 
 const itemSchema = new mongoose.Schema({
-  name: String,
-  quantity: Number,
-  unitPrice: Number,
+  name: { type: String, required: true },
+  quantity: { type: Number, required: true },
+  unitPrice: { type: Number, required: true },
 });
 
 const invoiceSchema = new mongoose.Schema({
   invoiceNumber: { type: String, unique: true },
   customerDetails: {
-    name: String,
-    address: String,
-    email: String,
-    phone: String,
+    name: { type: String, required: true },
+    address: { type: String, required: true },
+    email: { type: String, required: true },
+    phone: { type: String, required: true },
   },
-  invoiceDate: { type: Date, default: Date.now },
-  dueDate: { type: Date },
+  invoiceDate: { type: Date, required: true },
+  dueDate: { type: Date, required: true },
   items: [itemSchema],
-  taxRate: Number,
-  totalAmount: Number,
+  taxRate: { type: Number, required: true },
+  discount: { type: Number, default: 0 },
+  totalAmount: { type: Number, required: true },
   paymentStatus: { type: String, enum: ['pending', 'paid', 'overdue'], default: 'pending' },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);
+
 
