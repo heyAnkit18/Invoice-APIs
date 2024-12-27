@@ -5,98 +5,77 @@ const role = require('../middlewares/roles');
 
 const router = express.Router();
 
-// Create an Invoice (Admin Only)
+
 router.post('/', [auth, role('admin')], async (req, res) => {
-  try {
-    const {
-      invoiceNumber,
-      customerDetails,
-      invoiceDate,
-      dueDate,
-      items,
-      taxRate,
-      paymentStatus,
-    } = req.body;
+  const {
+    invoiceNumber,
+    customerDetails,
+    invoiceDate,
+    dueDate,
+    items,
+    taxRate,
+    discount,
+    paymentStatus,
+  } = req.body;
 
-    // Calculate total amount
-    let itemTotal = 0;
-    items.forEach(item => {
-      itemTotal += item.quantity * item.unitPrice;
-    });
-    const taxAmount = (itemTotal * taxRate) / 100;
-    const totalAmount = itemTotal + taxAmount;
+  let itemTotal = 0;
+  items.forEach(item => (itemTotal += item.quantity * item.unitPrice));
 
-    // Generate invoice number if not provided
-    const generatedInvoiceNumber = invoiceNumber || `INV-${Date.now()}`;
+  const taxAmount = (itemTotal * taxRate) / 100;
+  const totalAmount = itemTotal + taxAmount - discount;
 
-    // Create invoice
-    const invoice = new Invoice({
-      invoiceNumber: generatedInvoiceNumber,
-      customerDetails,
-      invoiceDate,
-      dueDate,
-      items,
-      taxRate,
-      totalAmount,
-      paymentStatus,
-    });
+  const generatedInvoiceNumber = invoiceNumber || `INV-${Date.now()}`;
 
-    // Save to database
-    await invoice.save();
+  const invoice = new Invoice({
+    invoiceNumber: generatedInvoiceNumber,
+    customerDetails,
+    invoiceDate,
+    dueDate,
+    items,
+    taxRate,
+    discount,
+    totalAmount,
+    paymentStatus,
+    createdBy: req.user.id,
+  });
 
-    res.status(201).json({ message: 'Invoice created successfully', invoice });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create invoice' });
-  }
+  await invoice.save();
+  res.status(201).json({ message: 'Invoice created successfully', invoice });
 });
 
-// Get All Invoices
 router.get('/', auth, async (req, res) => {
-  try {
-    const invoices = await Invoice.find();
-    res.send(invoices);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch invoices' });
+  let invoices;
+  if (req.user.role === 'admin') {
+    invoices = await Invoice.find();
+  } else {
+    invoices = await Invoice.find({ createdBy: req.user.id });
   }
+  res.json(invoices);
 });
 
-// Get Invoice by ID
 router.get('/:id', auth, async (req, res) => {
-  try {
-    const invoice = await Invoice.findById(req.params.id);
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-    res.send(invoice);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch invoice' });
+  const invoice = await Invoice.findById(req.params.id);
+
+  if (!invoice) return res.status(404).send('Invoice not found');
+  if (req.user.role !== 'admin' && invoice.createdBy.toString() !== req.user.id) {
+    return res.status(403).send('Access Denied');
   }
+
+  res.json(invoice);
 });
 
-// Update an Invoice (Admin Only)
 router.put('/:id', [auth, role('admin')], async (req, res) => {
-  try {
-    const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-    res.json({ message: 'Invoice updated successfully', invoice });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to update invoice' });
-  }
+  const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!invoice) return res.status(404).send('Invoice not found');
+  res.json({ message: 'Invoice updated successfully', invoice });
 });
 
-// Delete an Invoice (Admin Only)
 router.delete('/:id', [auth, role('admin')], async (req, res) => {
-  try {
-    const invoice = await Invoice.findByIdAndDelete(req.params.id);
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-    res.json({ message: 'Invoice deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete invoice' });
-  }
+  const invoice = await Invoice.findByIdAndDelete(req.params.id);
+  if (!invoice) return res.status(404).send('Invoice not found');
+  res.json({ message: 'Invoice deleted successfully' });
 });
 
 module.exports = router;
+
 
